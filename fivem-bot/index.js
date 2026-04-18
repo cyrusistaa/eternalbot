@@ -32,7 +32,13 @@ folders.forEach(folder => {
             if (folder === 'commands') {
                 client.commands.set(item.data.name, item);
             } else {
-                client.on(item.name, (...args) => item.execute(...args, client));
+                client.on(item.name, async (...args) => {
+                    try {
+                        await item.execute(...args, client);
+                    } catch (err) {
+                        console.error(`âŒ [EVENT] ${item.name} hata verdi:`, err);
+                    }
+                });
             }
         }
     }
