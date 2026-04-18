@@ -3,20 +3,32 @@ const config = require('../config.json');
 module.exports = {
     name: 'ready',
     async execute(client) {
-        console.log(`✅ ${client.user.tag} paneli izlemeye başladı!`);
+        console.log(`âœ… ${client.user.tag} paneli izlemeye baÅŸladÄ±!`);
 
-        async function panelGuncelle() {
-            const guild = client.guilds.cache.get(config.SUNUCU_ID) || client.guilds.cache.first();
+        const guildId = process.env.GUILD_ID || config.GUILD_ID;
+        let firstRun = true;
+
+        const getChannel = async (guild, channelId) => {
+            if (!channelId) return null;
+            const cached = guild.channels?.cache?.get(channelId) || client.channels.cache.get(channelId);
+            if (cached) return cached;
+            return await client.channels.fetch(channelId).catch(() => null);
+        };
+
+        const panelGuncelle = async () => {
+            const guild = (guildId && client.guilds.cache.get(guildId)) || client.guilds.cache.first();
             if (!guild) return;
 
-            try {
-                // Üye bilgilerini çekelim (Aktiflik ve rol sayımı için şart)
-                await guild.members.fetch({ withPresences: true });
+            if (firstRun) {
+                console.log(`🧩 [STATS] Tick başladı. Guild: ${guild.name} (${guild.id})`);
+                console.log(`🧩 [STATS] Kanal ID'leri: TARIKH=${config.KANAL_TARIKH} AKTIF=${config.KANAL_AKTIF} TOPLAM=${config.KANAL_TOPLAM}`);
+            }
 
-                // --- 1. TARİH KANALI GÜNCELLEME (Türkiye Saati ile) ---
-                const tarihKanal = guild.channels.cache.get(config.KANAL_TARIKH);
+            // --- 1. TARÄ°H KANALI GÃœNCELLEME (TÃ¼rkiye Saati ile) ---
+            try {
+                const tarihKanal = await getChannel(guild, config.KANAL_TARIKH);
+                if (firstRun && !tarihKanal) console.log(`âš ï¸ Tarih kanalÄ± bulunamadÄ±. ID: ${config.KANAL_TARIKH}`);
                 if (tarihKanal) {
-                    // Türkiye saati (GMT+3) için ayar
                     const simdi = new Date();
                     const trTarih = new Intl.DateTimeFormat('tr-TR', {
                         timeZone: 'Europe/Istanbul',
@@ -25,46 +37,62 @@ module.exports = {
                         year: 'numeric'
                     }).format(simdi);
 
-                    const yeniIsim = `📅 Tarih: ${trTarih}`;
-                    
+                    const yeniIsim = `ğŸ“… Tarih: ${trTarih}`;
                     if (tarihKanal.name !== yeniIsim) {
                         await tarihKanal.setName(yeniIsim)
-                            .then(() => console.log(`📅 Tarih Güncellendi: ${trTarih}`))
-                            .catch(err => console.log("⚠️ Tarih güncellenemedi (Hız sınırı olabilir)"));
+                            .then(() => console.log(`ğŸ“… Tarih GÃ¼ncellendi: ${trTarih}`))
+                            .catch(err => console.log(`âš ï¸ Tarih gÃ¼ncellenemedi: ${err?.code || ''} ${err?.message || err}`));
+                    } else if (firstRun) {
+                        console.log(`🧩 [STATS] Tarih zaten güncel: ${yeniIsim}`);
                     }
                 }
+            } catch (err) {
+                console.error("âŒ Tarih Panel HatasÄ±:", err?.message || err);
+            }
 
-                // --- 2. AKTİF ÜYE KANALI ---
-                const aktifKanal = guild.channels.cache.get(config.KANAL_AKTIF);
+            // --- 2/3. AKTÄ°F + TOPLAM SAYIMLAR (Ã¼ye fetch gerekebilir) ---
+            let membersFetched = false;
+            try {
+                await guild.members.fetch({ withPresences: true });
+                membersFetched = true;
+            } catch (err) {
+                console.log(`âš ï¸ Ãœyeler Ã§ekilemedi: ${err?.message || err}`);
+            }
+
+            if (!membersFetched) return;
+
+            try {
+                const aktifKanal = await getChannel(guild, config.KANAL_AKTIF);
+                if (firstRun && !aktifKanal) console.log(`âš ï¸ Aktif kanalÄ± bulunamadÄ±. ID: ${config.KANAL_AKTIF}`);
                 if (aktifKanal) {
                     const aktifSayisi = guild.members.cache.filter(m => m.presence && (m.presence.status !== 'offline' && m.presence.status !== 'invisible')).size;
-                    const yeniIsim = `🟢 Aktif: ${aktifSayisi}`;
-                    
+                    const yeniIsim = `ğŸŸ¢ Aktif: ${aktifSayisi}`;
+
                     if (aktifKanal.name !== yeniIsim) {
                         await aktifKanal.setName(yeniIsim).catch(() => {});
                     }
                 }
 
-                // --- 3. TOPLAM ÜYE KANALI ---
-                const toplamKanal = guild.channels.cache.get(config.KANAL_TOPLAM);
+                const toplamKanal = await getChannel(guild, config.KANAL_TOPLAM);
+                if (firstRun && !toplamKanal) console.log(`âš ï¸ Toplam kanalÄ± bulunamadÄ±. ID: ${config.KANAL_TOPLAM}`);
                 if (toplamKanal) {
                     const aileUyeSayisi = guild.members.cache.filter(m => m.roles.cache.has(config.AILE_ROL_ID)).size;
-                    const yeniIsim = `⚔️ Toplam: ${aileUyeSayisi}`;
-                    
+                    const yeniIsim = `âš”ï¸ Toplam: ${aileUyeSayisi}`;
+
                     if (toplamKanal.name !== yeniIsim) {
                         await toplamKanal.setName(yeniIsim).catch(() => {});
                     }
                 }
-
             } catch (err) {
-                console.error("❌ Panel Hatası:", err.message);
+                console.error("âŒ Panel HatasÄ±:", err?.message || err);
             }
-        }
 
-        // Aktif kullanıcı ve tarih için 5 dakikalık periyot
-        setInterval(panelGuncelle, 300000); 
-        
-        // İlk çalıştırma (10 saniye sonra)
+            firstRun = false;
+        };
+
+        // ilk tick hemen dene, sonra 10sn sonra bir daha, sonra 5dk'da bir
+        panelGuncelle().catch(() => {});
         setTimeout(panelGuncelle, 10000);
+        setInterval(panelGuncelle, 300000);
     }
 };
