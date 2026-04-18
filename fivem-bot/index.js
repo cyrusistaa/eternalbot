@@ -1,8 +1,10 @@
-const { Client, GatewayIntentBits, Collection, Partials, ActivityType } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, Partials, ActivityType, REST, Routes } = require('discord.js');
 const { joinVoiceChannel, getVoiceConnection } = require('@discordjs/voice');
 const fs = require('fs');
 const path = require('path');
 const config = require('./config.json');
+
+const GUILD_ID = process.env.GUILD_ID || config.GUILD_ID;
 
 // 1. BOTU TÜM İZİNLERLE BAŞLAT
 const client = new Client({
@@ -39,10 +41,11 @@ folders.forEach(folder => {
 // 3. SESE GİRİŞ FONKSİYONU (KULAKLIK KAPALI - MİKROFON AÇIK)
 const seseGir = async () => {
     try {
-        const guild = await client.guilds.fetch(config.GUILD_ID).catch(() => null);
+        const guild = await client.guilds.fetch(GUILD_ID).catch(() => null);
         if (!guild) return console.log("❌ [HATA] Sunucu ID bulunamadı.");
 
-        const channel = guild.channels.cache.get(config.BOT_SES_KANAL_ID);
+        const channelId = process.env.BOT_SES_KANAL_ID || config.BOT_SES_KANAL_ID;
+        const channel = guild.channels.cache.get(channelId);
         if (!channel) return console.log("❌ [HATA] Ses kanalı ID bulunamadı.");
 
         // Eski bağlantıyı temizle (Mikrofon takılı kalmasın)
@@ -65,6 +68,30 @@ const seseGir = async () => {
 };
 
 // 4. BOT HAZIR OLDUĞUNDA YAPILACAKLAR
+// SLASH KOMUTLARI DISCORD'A KAYDET (GUILD COMMANDS = aninda guncellenir)
+const registerSlashCommands = async () => {
+    if (!GUILD_ID) {
+        console.log("âš ï¸ [KOMUT] GUILD_ID yok. Slash komutlar guild'a kaydedilemedi.");
+        return;
+    }
+
+    const token = process.env.TOKEN || config.token;
+    if (!token) {
+        console.log("âš ï¸ [KOMUT] TOKEN yok. Slash komutlar kaydedilemedi.");
+        return;
+    }
+
+    const commandsJson = client.commands.map(cmd => cmd.data.toJSON());
+    const rest = new REST({ version: '10' }).setToken(token);
+
+    try {
+        await rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: commandsJson });
+        console.log(`âœ… [KOMUT] ${commandsJson.length} slash komut Discord'a kaydedildi. (Guild: ${GUILD_ID})`);
+    } catch (err) {
+        console.error("âŒ [KOMUT] Slash komut kayit hatasi:", err);
+    }
+};
+
 client.once('ready', () => {
     console.log(`✅ ${client.user.tag} Aktif!`);
     
@@ -79,6 +106,8 @@ client.once('ready', () => {
     });
 
     // 5 saniye bekle ve sese zıpla
+    registerSlashCommands();
+
     setTimeout(seseGir, 5000);
 });
 
