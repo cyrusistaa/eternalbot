@@ -1,5 +1,9 @@
 const config = require('../config.json');
 
+const EMOJI_DATE = '\uD83D\uDCC5'; // 📅
+const EMOJI_ACTIVE = '\uD83D\uDFE2'; // 🟢
+const EMOJI_TOTAL = '\u2694\uFE0F'; // ⚔️
+
 module.exports = {
     name: 'ready',
     async execute(client) {
@@ -16,7 +20,10 @@ module.exports = {
         };
 
         const panelGuncelle = async () => {
-            const guild = (guildId && client.guilds.cache.get(guildId)) || client.guilds.cache.first();
+            const guild =
+                (guildId && client.guilds.cache.get(guildId)) ||
+                (guildId ? await client.guilds.fetch(guildId).catch(() => null) : null) ||
+                client.guilds.cache.first();
             if (!guild) return;
 
             if (firstRun) {
@@ -37,7 +44,7 @@ module.exports = {
                         year: 'numeric'
                     }).format(simdi);
 
-                    const yeniIsim = `ğŸ“… Tarih: ${trTarih}`;
+                    const yeniIsim = `${EMOJI_DATE} Tarih: ${trTarih}`;
                     if (tarihKanal.name !== yeniIsim) {
                         await tarihKanal.setName(yeniIsim)
                             .then(() => console.log(`ğŸ“… Tarih GÃ¼ncellendi: ${trTarih}`))
@@ -65,8 +72,8 @@ module.exports = {
                 const aktifKanal = await getChannel(guild, config.KANAL_AKTIF);
                 if (firstRun && !aktifKanal) console.log(`âš ï¸ Aktif kanalÄ± bulunamadÄ±. ID: ${config.KANAL_AKTIF}`);
                 if (aktifKanal) {
-                    const aktifSayisi = guild.members.cache.filter(m => m.presence && (m.presence.status !== 'offline' && m.presence.status !== 'invisible')).size;
-                    const yeniIsim = `ğŸŸ¢ Aktif: ${aktifSayisi}`;
+                    const aktifSayisi = guild.members.cache.filter(m => !m.user.bot && m.presence && (m.presence.status !== 'offline' && m.presence.status !== 'invisible')).size;
+                    const yeniIsim = `${EMOJI_ACTIVE} Aktif: ${aktifSayisi}`;
 
                     if (aktifKanal.name !== yeniIsim) {
                         await aktifKanal.setName(yeniIsim).catch(() => {});
@@ -76,8 +83,8 @@ module.exports = {
                 const toplamKanal = await getChannel(guild, config.KANAL_TOPLAM);
                 if (firstRun && !toplamKanal) console.log(`âš ï¸ Toplam kanalÄ± bulunamadÄ±. ID: ${config.KANAL_TOPLAM}`);
                 if (toplamKanal) {
-                    const aileUyeSayisi = guild.members.cache.filter(m => m.roles.cache.has(config.AILE_ROL_ID)).size;
-                    const yeniIsim = `âš”ï¸ Toplam: ${aileUyeSayisi}`;
+                    const toplamUye = guild.memberCount;
+                    const yeniIsim = `${EMOJI_TOTAL} Toplam: ${toplamUye}`;
 
                     if (toplamKanal.name !== yeniIsim) {
                         await toplamKanal.setName(yeniIsim).catch(() => {});
