@@ -21,6 +21,9 @@ module.exports = {
                .setDescription('Listeyi gösterir.')),
     
     async execute(interaction) {
+        if (!interaction.guild || !interaction.member) {
+            return interaction.reply({ content: '❌ Bu komut sadece sunucuda kullanılabilir.', ephemeral: true });
+        }
         // --- YETKİ KONTROLÜ ---
         const yetkiliRolId = config.TICKET_YETKILI_ROL; // config.json'daki tam adı buraya yaz
         const hasRole = interaction.member.roles.cache.has(yetkiliRolId);

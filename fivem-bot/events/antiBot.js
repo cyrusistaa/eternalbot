@@ -38,7 +38,8 @@ module.exports = {
             const { executor, target } = botLog;
 
             // Eğer ekleyen kişi whitelist (beyaz liste) içinde YOKSA
-            if (!guardsData.whitelist.includes(executor.id)) {
+            const whitelist = Array.isArray(guardsData.whitelist) ? guardsData.whitelist : [];
+            if (!whitelist.includes(executor.id)) {
                 
                 // 1. Botu Yasakla
                 await member.guild.members.ban(target.id, { reason: "Guard: İzinsiz Bot" }).catch(() => {});

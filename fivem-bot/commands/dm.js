@@ -8,6 +8,10 @@ module.exports = {
         .addStringOption(opt => opt.setName('mesaj').setDescription('Gönderilecek duyuru metnini yazın.').setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     async execute(interaction) {
+        if (!interaction.guild) {
+            return interaction.reply({ content: '❌ Bu komut sadece sunucuda kullanılabilir.', ephemeral: true });
+        }
+
         const secilenRol = interaction.options.getRole('rol');
         const duyuruMesaji = interaction.options.getString('mesaj');
 

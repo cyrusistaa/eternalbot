@@ -1,24 +1,44 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { QuickDB } = require("quick.db");
-const db = new QuickDB();
+const { withDb, normalizeUser } = require('../lib/db');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('gunluk')
         .setDescription('Günlük şans puanını topla.'),
+
     async execute(interaction) {
-        const lastDaily = await db.get(`daily_${interaction.user.id}`);
-        const cooldown = 86400000;
+        const userId = interaction.user.id;
+        const cooldownMs = 24 * 60 * 60 * 1000;
 
-        if (lastDaily !== null && cooldown - (Date.now() - lastDaily) > 0) {
-            const timeRem = cooldown - (Date.now() - lastDaily);
-            const hours = Math.floor(timeRem / (1000 * 60 * 60));
-            return interaction.reply({ content: `⌛ Sabırlı ol evlat! Tekrar denemek için **${hours} saat** beklemen gerek.`, ephemeral: true });
+        let remainingMs = 0;
+        let randomPuan = 0;
+
+        await withDb((db) => {
+            const user = normalizeUser(db[userId], interaction.user.username);
+
+            const lastDaily = user.dailyLast || 0;
+            remainingMs = lastDaily ? (cooldownMs - (Date.now() - lastDaily)) : 0;
+
+            if (lastDaily && remainingMs > 0) {
+                db[userId] = user;
+                return;
+            }
+
+            randomPuan = Math.floor(Math.random() * 8) + 2; // 2-10
+            user.puan += randomPuan;
+            user.dailyLast = Date.now();
+            user.username = interaction.user.username;
+            db[userId] = user;
+        });
+
+        if (remainingMs > 0) {
+            const hours = Math.floor(remainingMs / (1000 * 60 * 60));
+            const minutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+            return interaction.reply({
+                content: `⏳ Bugünlük aldın. Tekrar denemek için **${hours}s ${minutes}dk** beklemen gerek.`,
+                ephemeral: true
+            });
         }
-
-        const randomPuan = Math.floor(Math.random() * 8) + 2; // 2 ile 10 arası puan
-        await db.add(`puan_${interaction.user.id}`, randomPuan);
-        await db.set(`daily_${interaction.user.id}`, Date.now());
 
         const embed = new EmbedBuilder()
             .setTitle('🎁 Günlük Bonus')
@@ -26,6 +46,6 @@ module.exports = {
             .setColor('#9b59b6')
             .setFooter({ text: 'Yarın tekrar gelmeyi unutma!' });
 
-        await interaction.reply({ embeds: [embed] });
+        return interaction.reply({ embeds: [embed] });
     }
 };

@@ -8,7 +8,7 @@ module.exports = {
         if (member.user.bot) return;
 
         const logKanalId = config.GIRIS_CIKIS;
-        const logKanal = member.guild.channels.cache.get(logKanalId);
+        const logKanal = logKanalId ? await member.client.channels.fetch(logKanalId).catch(() => null) : null;
 
         try {
             // --- 1. SADECE TEMEL ROLÜ VERME (OTO_ROL) ---

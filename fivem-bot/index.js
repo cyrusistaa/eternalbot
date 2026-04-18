@@ -132,4 +132,8 @@ client.on('interactionCreate', async interaction => {
 
 // 6. GİRİŞ (RAILWAY TOKEN DESTEĞİ)
 const token = process.env.TOKEN || config.token;
-client.login(token);
+if (!token) {
+    console.error("âŒ [HATA] TOKEN bulunamadÄ±. Railway Variables'a TOKEN ekleyin.");
+} else {
+    client.login(token);
+}

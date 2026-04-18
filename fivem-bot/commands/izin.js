@@ -1,16 +1,22 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const config = require('../config.json');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('izin')
         .setDescription('Aktiflik izni talebinde bulunur.')
-        .addIntegerOption(opt => opt.setName('gün').setDescription('Kaç gün?').setRequired(true))
-        .addStringOption(opt => opt.setName('sebep').setDescription('Neden?').setRequired(true)),
+        .addIntegerOption(opt =>
+            opt.setName('gun').setDescription('Kaç gün?').setRequired(true)
+        )
+        .addStringOption(opt =>
+            opt.setName('sebep').setDescription('Neden?').setRequired(true)
+        ),
+
     async execute(interaction) {
-        const KANAL_ID = "1478506502842220657"; // İzin Log ID
-        const gun = interaction.options.getInteger('gün');
+        const kanalId = config.IZIN_LOG;
+        const gun = interaction.options.getInteger('gun');
         const sebep = interaction.options.getString('sebep');
-        
+
         const embed = new EmbedBuilder()
             .setAuthor({ name: 'İzin Talebi', iconURL: interaction.user.displayAvatarURL() })
             .addFields(
@@ -21,12 +27,16 @@ module.exports = {
             .setColor('#3498db')
             .setTimestamp();
 
-        const kanal = interaction.client.channels.cache.get(KANAL_ID);
-        if (kanal) {
-            await kanal.send({ content: "@everyone", embeds: [embed] });
-            await interaction.reply({ content: '✅ Talebin iletildi.', ephemeral: true });
-        } else {
-            await interaction.reply({ content: '❌ İzin kanalı bulunamadı!', ephemeral: true });
+        if (!kanalId) {
+            return interaction.reply({ content: '❌ `IZIN_LOG` ayarlı değil.', ephemeral: true });
         }
+
+        const kanal = await interaction.client.channels.fetch(kanalId).catch(() => null);
+        if (!kanal) {
+            return interaction.reply({ content: '❌ İzin kanalı bulunamadı!', ephemeral: true });
+        }
+
+        await kanal.send({ content: '@everyone', embeds: [embed] }).catch(() => {});
+        return interaction.reply({ content: '✅ Talebin iletildi.', ephemeral: true });
     }
 };

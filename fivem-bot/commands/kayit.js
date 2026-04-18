@@ -6,6 +6,9 @@ module.exports = {
         .setDescription('Kayıt mesajını ve üye sayısını gönderir.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     async execute(interaction) {
+        if (!interaction.guild) {
+            return interaction.reply({ content: '❌ Bu komut sadece sunucuda kullanılabilir.', ephemeral: true });
+        }
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('kayit_btn')

@@ -7,6 +7,9 @@ module.exports = {
         .addIntegerOption(opt => opt.setName('miktar').setDescription('1-100 arası bir sayı girin.').setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
     async execute(interaction) {
+        if (!interaction.guild || !interaction.channel) {
+            return interaction.reply({ content: '❌ Bu komut sadece sunucuda kullanılabilir.', ephemeral: true });
+        }
         const miktar = interaction.options.getInteger('miktar');
 
         if (miktar < 1 || miktar > 100) {

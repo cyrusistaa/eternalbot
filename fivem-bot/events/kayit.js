@@ -12,7 +12,7 @@ module.exports = {
             await interaction.deferReply({ ephemeral: true });
 
             // 2. LOG KANALINA GÖNDERİM
-            const kanal = client.channels.cache.get(config.KAYIT_LOG);
+            const kanal = await client.channels.fetch(config.KAYIT_LOG).catch(() => null);
             if (kanal) {
                 const embed = new EmbedBuilder()
                     .setTitle('⚔️ Yeni Kayıt Başvurusu!')

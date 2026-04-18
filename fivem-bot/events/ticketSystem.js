@@ -12,6 +12,7 @@ const config = require('../config.json');
 module.exports = {
     name: 'interactionCreate',
     async execute(interaction) { // 'client' yerine 'interaction' gelir çünkü event budur
+        if (!interaction.guild) return;
 
         // Sadece buton etkileşimlerini kontrol et
         if (!interaction.isButton()) return;
