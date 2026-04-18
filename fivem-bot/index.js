@@ -104,7 +104,7 @@ client.once('ready', () => {
     // YAYINDA DURUMU (Developed By CyrusFix)
     client.user.setPresence({
         activities: [{ 
-            name: `Developed By CyrusFix`, 
+            name: `Cyrus ❤ Beyaz`, 
             type: ActivityType.Streaming, 
             url: "https://www.twitch.tv/cyrusfix" 
         }],
