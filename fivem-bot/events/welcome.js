@@ -18,6 +18,26 @@ module.exports = {
             
             if (otoRolId && otoRolId.length > 5) {
                 try {
+                    const me = member.guild.members.me || await member.guild.members.fetchMe().catch(() => null);
+                    const role = member.guild.roles.cache.get(otoRolId) || await member.guild.roles.fetch(otoRolId).catch(() => null);
+
+                    if (!me) {
+                        const msg = 'Bot üye bilgisi alınamadı; oto-rol verilemedi.';
+                        console.log(`⚠️ ${msg}`);
+                        await sendErrorLog(member.client, msg);
+                    } else if (!me.permissions.has('ManageRoles')) {
+                        const msg = 'Botta Manage Roles izni yok; oto-rol verilemez.';
+                        console.log(`⚠️ ${msg}`);
+                        await sendErrorLog(member.client, msg);
+                    } else if (!role) {
+                        const msg = `OTO_ROL_ID rolü bulunamadı: ${otoRolId}`;
+                        console.log(`⚠️ ${msg}`);
+                        await sendErrorLog(member.client, msg);
+                    } else if (me.roles.highest.position <= role.position) {
+                        const msg = `Rol hiyerarşisi yetersiz: botRolePos=${me.roles.highest.position} hedefRolePos=${role.position}`;
+                        console.log(`⚠️ ${msg}`);
+                        await sendErrorLog(member.client, msg);
+                    }
                     await member.roles.add(otoRolId);
                 } catch (err) {
                     const msg = `Oto-rol verilemedi (OTO_ROL_ID=${otoRolId}): ${err?.code || ''} ${err?.message || err}`;

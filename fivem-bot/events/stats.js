@@ -44,6 +44,17 @@ module.exports = {
             if (firstRun) {
                 console.log(`[STATS] Guild: ${guild.name} (${guild.id})`);
                 console.log(`[STATS] IDs: TARIKH=${getSetting('KANAL_TARIKH')} AKTIF=${getSetting('KANAL_AKTIF')} TOPLAM=${getSetting('KANAL_TOPLAM')}`);
+
+                try {
+                    const me = guild.members.me || await guild.members.fetchMe().catch(() => null);
+                    if (!me) {
+                        console.log('⚠️ [STATS] Bot üye bilgisi alınamadı.');
+                    } else if (!me.permissions.has('ManageChannels')) {
+                        const msg = 'Botta Manage Channels izni yok; stats kanalları yeniden adlandırılamaz.';
+                        console.log(`⚠️ [STATS] ${msg}`);
+                        await sendErrorLog(client, msg);
+                    }
+                } catch {}
             }
 
             // Tarih

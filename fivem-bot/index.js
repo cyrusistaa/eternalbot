@@ -90,6 +90,9 @@ for (const folder of ['commands', 'events']) {
     }
 }
 
+console.log(`[BOOT] commands=${client.commands.size} events=${loadedEvents.length} cwd=${process.cwd()}`);
+if (DEBUG_EVENTS) console.log(`[BOOT] eventFiles=${loadedEvents.map(e => e.file).join(', ')}`);
+
 const registerSlashCommands = async () => {
     const guildId = getSetting('GUILD_ID') || config.GUILD_ID;
     const token = getSetting('TOKEN') || config.token;

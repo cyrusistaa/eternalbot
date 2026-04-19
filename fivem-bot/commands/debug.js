@@ -20,6 +20,7 @@ module.exports = {
         const intentsValue = typeof intents?.bitfield === 'number' ? intents.bitfield : (Number(intents) || 0);
 
         const loadedNames = (events?.loadedEvents || []).map(e => e.name);
+        const loadedFiles = (events?.loadedEvents || []).map(e => `${e.name}:${e.file}`);
         const firedNames = Array.from(events?.firedEvents || []);
 
         const shortList = (arr, max = 12) => {
@@ -27,6 +28,12 @@ module.exports = {
             const more = arr.length > max ? ` …(+${arr.length - max})` : '';
             return (sliced.join(', ') || 'Yok') + more;
         };
+
+        let diskEvents = [];
+        try {
+            const eventsDir = path.join(__dirname, '..', 'events');
+            diskEvents = fs.readdirSync(eventsDir).filter(f => f.endsWith('.js'));
+        } catch {}
 
         const dbDir = path.dirname(dbPath);
         let canWrite = false;
@@ -43,7 +50,7 @@ module.exports = {
         } catch {}
 
         const settings = allSettings();
-        const critical = ['GUILD_ID', 'KANAL_TARIKH', 'KANAL_AKTIF', 'KANAL_TOPLAM', 'GIRIS_CIKIS', 'TICKET_LOG', 'TICKET_KATEGORI_ID', 'TICKET_YETKILI_ROL'];
+        const critical = ['GUILD_ID', 'ERROR_LOG', 'OTO_ROL_ID', 'KANAL_TARIKH', 'KANAL_AKTIF', 'KANAL_TOPLAM', 'GIRIS_CIKIS', 'TICKET_LOG', 'TICKET_KATEGORI_ID', 'TICKET_YETKILI_ROL'];
         const criticalText = critical.map(k => `${k}=${settings[k] ?? 'Yok'}`).join(' | ');
 
         return interaction.reply({
@@ -52,10 +59,13 @@ module.exports = {
                 `Events: loaded=${loaded} firedOnce=${fired} DEBUG_EVENTS=${debugEvents}\n` +
                 `Intents(bitfield): ${intentsValue}\n` +
                 `Loaded: ${shortList(loadedNames)}\n` +
+                `LoadedFiles: ${shortList(loadedFiles)}\n` +
+                `DiskEvents: ${shortList(diskEvents)}\n` +
                 `Fired: ${shortList(firedNames)}\n` +
                 `DB: path=${dbPath} exists=${dbExists} size=${dbSize} writableDir=${canWrite}\n` +
                 `Settings: ${criticalText}\n` +
-                `settings.json: ${settingsPath}`,
+                `settings.json: ${settingsPath}\n` +
+                `cwd: ${process.cwd()}`,
             ephemeral: true
         });
     }
