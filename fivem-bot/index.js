@@ -75,10 +75,9 @@ for (const folder of ['commands', 'events']) {
 
         const handler = async (...args) => {
             try {
-                if (DEBUG_EVENTS && !firedEvents.has(item.name)) {
-                    firedEvents.add(item.name);
-                    console.log(`[FIRE] event=${item.name} file=${file}`);
-                }
+                const first = !firedEvents.has(item.name);
+                firedEvents.add(item.name);
+                if (DEBUG_EVENTS && first) console.log(`[FIRE] event=${item.name} file=${file}`);
                 await item.execute(...args, client);
             } catch (err) {
                 console.error(`[EVENT] ${item.name} file=${file} hata:`, err);
