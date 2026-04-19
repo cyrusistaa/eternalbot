@@ -1,5 +1,5 @@
 const { EmbedBuilder, Events } = require('discord.js');
-const config = require('../config.json');
+const { get: getSetting } = require('../lib/settings');
 
 module.exports = {
     name: Events.MessageDelete,
@@ -12,7 +12,8 @@ module.exports = {
             (message.guildId ? await client.guilds.fetch(message.guildId).catch(() => null) : null);
         if (!guild) return;
 
-        const logKanal = guild.channels.cache.get(config.MESAJ_LOG_KANAL_ID);
+        const kanalId = getSetting('MESAJ_LOG_KANAL_ID') || getSetting('MESAJ_LOG');
+        const logKanal = kanalId ? await client.channels.fetch(kanalId).catch(() => null) : null;
         if (!logKanal) return;
 
         const authorTag = message.author?.tag || 'Bilinmiyor';

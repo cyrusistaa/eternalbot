@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const config = require('../config.json');
+const { get: getSetting } = require('../lib/settings');
 
 module.exports = {
     name: 'interactionCreate', // Bu event adıdır
@@ -12,7 +12,8 @@ module.exports = {
             await interaction.deferReply({ ephemeral: true });
 
             // 2. LOG KANALINA GÖNDERİM
-            const kanal = await client.channels.fetch(config.KAYIT_LOG).catch(() => null);
+            const kanalId = getSetting('KAYIT_LOG');
+            const kanal = kanalId ? await client.channels.fetch(kanalId).catch(() => null) : null;
             if (kanal) {
                 const embed = new EmbedBuilder()
                     .setTitle('⚔️ Yeni Kayıt Başvurusu!')

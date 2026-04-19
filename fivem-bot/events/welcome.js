@@ -1,5 +1,5 @@
 const { EmbedBuilder, Events } = require('discord.js');
-const config = require('../config.json');
+const { get: getSetting } = require('../lib/settings');
 
 module.exports = {
     name: Events.GuildMemberAdd, 
@@ -7,13 +7,13 @@ module.exports = {
         // Botları koruma sistemi (antiBot) zaten hallettiği için burada işlem yapmıyoruz
         if (member.user.bot) return;
 
-        const logKanalId = config.GIRIS_CIKIS;
+        const logKanalId = getSetting('GIRIS_CIKIS');
         const logKanal = logKanalId ? await member.client.channels.fetch(logKanalId).catch(() => null) : null;
 
         try {
             // --- 1. SADECE TEMEL ROLÜ VERME (OTO_ROL) ---
             // AILE_ROL_ID'yi buradan kaldırdık ki adam kayıt olmadan o yetkiyi almasın.
-            const otoRolId = config.OTO_ROL_ID;
+            const otoRolId = getSetting('OTO_ROL_ID');
             
             if (otoRolId && otoRolId.length > 5) {
                 await member.roles.add(otoRolId).catch(err => 

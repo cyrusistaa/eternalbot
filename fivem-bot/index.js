@@ -3,10 +3,8 @@ const { joinVoiceChannel, getVoiceConnection } = require('@discordjs/voice');
 const fs = require('fs');
 const path = require('path');
 const config = require('./config.json');
+const { get: getSetting } = require('./lib/settings');
 
-const GUILD_ID = process.env.GUILD_ID || config.GUILD_ID;
-
-// 1. BOTU TÜM İZİNLERLE BAŞLAT
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -21,40 +19,109 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// 2. KOMUT VE EVENTLERİ OTOMATİK YÜKLE
-const folders = ['commands', 'events'];
-folders.forEach(folder => {
-    const folderPath = path.join(__dirname, folder);
-    if (fs.existsSync(folderPath)) {
-        const files = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
-        for (const file of files) {
-            const item = require(path.join(folderPath, file));
-            if (folder === 'commands') {
-                client.commands.set(item.data.name, item);
-            } else {
-                client.on(item.name, async (...args) => {
-                    try {
-                        await item.execute(...args, client);
-                    } catch (err) {
-                        console.error(`âŒ [EVENT] ${item.name} hata verdi:`, err);
-                    }
-                });
-            }
-        }
-    }
+const loadedEvents = [];
+const firedEvents = new Set();
+const DEBUG_EVENTS = process.env.DEBUG_EVENTS === '1';
+client._debugEvents = { loadedEvents, firedEvents };
+
+const sendErrorLog = async (text) => {
+    try {
+        const channelId = getSetting('ERROR_LOG');
+        if (!channelId || !client.isReady()) return;
+
+        const ch = await client.channels.fetch(channelId).catch(() => null);
+        if (!ch) return;
+
+        const msg = String(text || '').slice(0, 1800);
+        ch.send({ content: `\uD83E\uDDEF Bot Hatası\n\`\`\`\n${msg}\n\`\`\`` }).catch(() => {});
+    } catch {}
+};
+
+process.on('unhandledRejection', (reason) => {
+    console.error('UnhandledRejection:', reason);
+    sendErrorLog(reason?.stack || reason?.message || reason);
 });
 
-// 3. SESE GİRİŞ FONKSİYONU (KULAKLIK KAPALI - MİKROFON AÇIK)
-const seseGir = async () => {
+process.on('uncaughtException', (err) => {
+    console.error('UncaughtException:', err);
+    sendErrorLog(err?.stack || err?.message || err);
+});
+
+// Komut + event loader
+for (const folder of ['commands', 'events']) {
+    const folderPath = path.join(__dirname, folder);
+    if (!fs.existsSync(folderPath)) continue;
+
+    const files = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
+    for (const file of files) {
+        const item = require(path.join(folderPath, file));
+
+        if (folder === 'commands') {
+            if (!item?.data?.name || typeof item.execute !== 'function') {
+                console.log(`[SKIP] command file=${file} (geçersiz export)`);
+                continue;
+            }
+            client.commands.set(item.data.name, item);
+            continue;
+        }
+
+        if (!item?.name || typeof item.execute !== 'function') {
+            console.log(`[SKIP] event file=${file} (geçersiz export)`);
+            continue;
+        }
+
+        loadedEvents.push({ name: item.name, file, once: !!item.once });
+        if (DEBUG_EVENTS) console.log(`[LOAD] event=${item.name} once=${!!item.once} file=${file}`);
+
+        const handler = async (...args) => {
+            try {
+                if (DEBUG_EVENTS && !firedEvents.has(item.name)) {
+                    firedEvents.add(item.name);
+                    console.log(`[FIRE] event=${item.name} file=${file}`);
+                }
+                await item.execute(...args, client);
+            } catch (err) {
+                console.error(`[EVENT] ${item.name} file=${file} hata:`, err);
+                sendErrorLog(err?.stack || err?.message || err);
+            }
+        };
+
+        if (item.once) client.once(item.name, handler);
+        else client.on(item.name, handler);
+    }
+}
+
+const registerSlashCommands = async () => {
+    const guildId = getSetting('GUILD_ID') || config.GUILD_ID;
+    const token = getSetting('TOKEN') || config.token;
+
+    if (!guildId) return console.log('[KOMUT] GUILD_ID yok, slash komutlar kaydedilmedi.');
+    if (!token) return console.log('[KOMUT] TOKEN yok, slash komutlar kaydedilmedi.');
+
+    const commandsJson = client.commands.map(cmd => cmd.data.toJSON());
+    const rest = new REST({ version: '10' }).setToken(token);
+
     try {
-        const guild = await client.guilds.fetch(GUILD_ID).catch(() => null);
-        if (!guild) return console.log("❌ [HATA] Sunucu ID bulunamadı.");
+        await rest.put(Routes.applicationGuildCommands(client.user.id, guildId), { body: commandsJson });
+        console.log(`[KOMUT] ${commandsJson.length} slash komut kaydedildi. (Guild: ${guildId})`);
+    } catch (err) {
+        console.error('[KOMUT] Slash komut kayıt hatası:', err);
+    }
+};
 
-        const channelId = process.env.BOT_SES_KANAL_ID || config.BOT_SES_KANAL_ID;
-        const channel = guild.channels.cache.get(channelId);
-        if (!channel) return console.log("❌ [HATA] Ses kanalı ID bulunamadı.");
+const joinVoice = async () => {
+    const guildId = getSetting('GUILD_ID') || config.GUILD_ID;
+    const channelId = getSetting('BOT_SES_KANAL_ID') || config.BOT_SES_KANAL_ID;
 
-        // Eski bağlantıyı temizle (Mikrofon takılı kalmasın)
+    if (!guildId || !channelId) return;
+
+    try {
+        const guild = await client.guilds.fetch(guildId).catch(() => null);
+        if (!guild) return;
+
+        const channel = guild.channels.cache.get(channelId) || await client.channels.fetch(channelId).catch(() => null);
+        if (!channel) return;
+
         const oldConnection = getVoiceConnection(guild.id);
         if (oldConnection) oldConnection.destroy();
 
@@ -62,78 +129,52 @@ const seseGir = async () => {
             channelId: channel.id,
             guildId: guild.id,
             adapterCreator: guild.voiceAdapterCreator,
-            selfDeaf: true,  // Kulaklık KAPALI (Kırmızı Çizgili)
-            selfMute: false, // Mikrofon AÇIK (Çizgi Olmayacak)
+            selfDeaf: true,
+            selfMute: false,
             group: client.user.id
         });
 
-        console.log(`🔊 [SES] "${channel.name}" kanalına giriş yapıldı. (Kulaklık: Kapalı, Mik: Açık)`);
+        console.log(`[SES] "${channel.name}" kanalına giriş yapıldı.`);
     } catch (err) {
-        console.error("❌ [SES HATASI] Giriş yapılamadı:", err.message);
+        console.error('[SES] Hata:', err?.message || err);
     }
 };
 
-// 4. BOT HAZIR OLDUĞUNDA YAPILACAKLAR
-// SLASH KOMUTLARI DISCORD'A KAYDET (GUILD COMMANDS = aninda guncellenir)
-const registerSlashCommands = async () => {
-    if (!GUILD_ID) {
-        console.log("âš ï¸ [KOMUT] GUILD_ID yok. Slash komutlar guild'a kaydedilemedi.");
-        return;
-    }
+client.once('ready', async () => {
+    console.log(`✅ ${client.user.tag} aktif!`);
 
-    const token = process.env.TOKEN || config.token;
-    if (!token) {
-        console.log("âš ï¸ [KOMUT] TOKEN yok. Slash komutlar kaydedilemedi.");
-        return;
-    }
-
-    const commandsJson = client.commands.map(cmd => cmd.data.toJSON());
-    const rest = new REST({ version: '10' }).setToken(token);
-
-    try {
-        await rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: commandsJson });
-        console.log(`âœ… [KOMUT] ${commandsJson.length} slash komut Discord'a kaydedildi. (Guild: ${GUILD_ID})`);
-    } catch (err) {
-        console.error("âŒ [KOMUT] Slash komut kayit hatasi:", err);
-    }
-};
-
-client.once('ready', () => {
-    console.log(`✅ ${client.user.tag} Aktif!`);
-    
-    // YAYINDA DURUMU (Developed By CyrusFix)
     client.user.setPresence({
-        activities: [{ 
-            name: `Developed By CyrusFix`, 
-            type: ActivityType.Streaming, 
-            url: "https://www.twitch.tv/cyrusfix" 
+        activities: [{
+            name: 'Developed By CyrusFix',
+            type: ActivityType.Streaming,
+            url: 'https://www.twitch.tv/cyrusfix'
         }],
         status: 'dnd',
     });
 
-    // 5 saniye bekle ve sese zıpla
-    registerSlashCommands();
-
-    setTimeout(seseGir, 5000);
+    await registerSlashCommands();
+    setTimeout(joinVoice, 5000);
 });
 
-// 5. SLASH KOMUT DİNLEYİCİ
-client.on('interactionCreate', async interaction => {
+client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
+
     try {
         await command.execute(interaction);
-    } catch (error) {
-        console.error(error);
-        if (!interaction.replied) await interaction.reply({ content: 'Bir hata oluştu!', ephemeral: true });
+    } catch (err) {
+        console.error(`[CMD] ${interaction.commandName} hata:`, err);
+        sendErrorLog(err?.stack || err?.message || err);
+        if (!interaction.replied) {
+            await interaction.reply({ content: '❌ Bir hata oluştu.', ephemeral: true }).catch(() => {});
+        }
     }
 });
 
-// 6. GİRİŞ (RAILWAY TOKEN DESTEĞİ)
-const token = process.env.TOKEN || config.token;
+const token = getSetting('TOKEN') || config.token;
 if (!token) {
-    console.error("âŒ [HATA] TOKEN bulunamadÄ±. Railway Variables'a TOKEN ekleyin.");
+    console.error("❌ TOKEN bulunamadı. Railway Variables'a TOKEN ekleyin.");
 } else {
     client.login(token);
 }

@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const config = require('../config.json');
+const { get: getSetting } = require('../lib/settings');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -13,7 +13,7 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        const kanalId = config.IZIN_LOG;
+        const kanalId = getSetting('IZIN_LOG');
         const gun = interaction.options.getInteger('gun');
         const sebep = interaction.options.getString('sebep');
 

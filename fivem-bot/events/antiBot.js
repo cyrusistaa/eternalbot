@@ -1,7 +1,7 @@
 const { EmbedBuilder, AuditLogEvent, Events } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const config = require('../config.json');
+const { get: getSetting } = require('../lib/settings');
 
 module.exports = {
     name: Events.GuildMemberAdd, // Doğrudan event ismini veriyoruz
@@ -48,8 +48,8 @@ module.exports = {
                 await member.guild.members.ban(executor.id, { reason: "Guard: İzinsiz Bot Ekleme" }).catch(() => {});
 
                 // Log Kanalına Bildir
-                const logKanalId = config.GUARD_LOG || config.BAN_LOG;
-                const logKanal = member.guild.channels.cache.get(logKanalId);
+                const logKanalId = getSetting('GUARD_LOG') || getSetting('BAN_LOG');
+                const logKanal = logKanalId ? await member.client.channels.fetch(logKanalId).catch(() => null) : null;
                 
                 if (logKanal) {
                     const embed = new EmbedBuilder()

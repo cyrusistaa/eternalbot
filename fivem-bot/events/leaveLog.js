@@ -1,12 +1,12 @@
 const { EmbedBuilder, Events } = require('discord.js');
-const config = require('../config.json');
+const { get: getSetting } = require('../lib/settings');
 
 module.exports = {
     name: Events.GuildMemberRemove,
     async execute(member, client) {
         if (!member?.guild) return;
 
-        const kanalId = config.GIRIS_CIKIS;
+        const kanalId = getSetting('GIRIS_CIKIS');
         if (!kanalId) return;
 
         const kanal = await client.channels.fetch(kanalId).catch(() => null);

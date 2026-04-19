@@ -1,7 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const dbPath = path.join(__dirname, '..', 'database.json');
+const dbPath = process.env.DB_JSON_PATH
+    ? path.resolve(process.env.DB_JSON_PATH)
+    : path.join(__dirname, '..', 'database.json');
 
 let queue = Promise.resolve();
 
