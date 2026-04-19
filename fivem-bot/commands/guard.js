@@ -11,17 +11,13 @@ module.exports = {
             sub
                 .setName('ekle')
                 .setDescription('Listeye yeni birini ekler.')
-                .addUserOption(opt =>
-                    opt.setName('kisi').setDescription('Eklenecek kişi').setRequired(true)
-                )
+                .addUserOption(opt => opt.setName('kisi').setDescription('Eklenecek kişi').setRequired(true))
         )
         .addSubcommand(sub =>
             sub
                 .setName('cikar')
                 .setDescription('Listeden birini çıkarır.')
-                .addUserOption(opt =>
-                    opt.setName('kisi').setDescription('Çıkarılacak kişi').setRequired(true)
-                )
+                .addUserOption(opt => opt.setName('kisi').setDescription('Çıkarılacak kişi').setRequired(true))
         )
         .addSubcommand(sub => sub.setName('liste').setDescription('Listeyi gösterir.')),
 
@@ -33,20 +29,22 @@ module.exports = {
         const yetkiliRolId = getSetting('TICKET_YETKILI_ROL');
         const hasRole = yetkiliRolId ? interaction.member.roles.cache.has(yetkiliRolId) : false;
         const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
-
         if (!hasRole && !isAdmin) {
-            return interaction.reply({
-                content: '❌ Bu komutu kullanmak için gerekli yetkiye sahip değilsiniz.',
-                ephemeral: true
-            });
+            return interaction.reply({ content: '❌ Yetkin yok.', ephemeral: true });
         }
 
         const guardsPath = path.join(__dirname, '../guards.json');
-        if (!fs.existsSync(guardsPath)) fs.writeFileSync(guardsPath, JSON.stringify({ whitelist: [] }, null, 2));
-
-        let guardsData = {};
         try {
-            guardsData = JSON.parse(fs.readFileSync(guardsPath, 'utf8'));
+            if (!fs.existsSync(guardsPath)) fs.writeFileSync(guardsPath, JSON.stringify({ whitelist: [] }, null, 2));
+        } catch (err) {
+            console.error('guards.json oluşturma hatası:', err);
+            return interaction.reply({ content: '❌ guards.json oluşturulamadı (dosya izni?).', ephemeral: true });
+        }
+
+        let guardsData = { whitelist: [] };
+        try {
+            const raw = fs.readFileSync(guardsPath, 'utf8');
+            guardsData = raw.trim() ? JSON.parse(raw) : { whitelist: [] };
         } catch {
             guardsData = { whitelist: [] };
         }
@@ -58,33 +56,41 @@ module.exports = {
         if (sub === 'ekle') {
             if (!guardsData.whitelist.includes(user.id)) {
                 guardsData.whitelist.push(user.id);
-                fs.writeFileSync(guardsPath, JSON.stringify(guardsData, null, 2));
-                return interaction.reply(`✅ **${user.username}** artık bot ekleyebilir.`);
+                try {
+                    fs.writeFileSync(guardsPath, JSON.stringify(guardsData, null, 2));
+                } catch (err) {
+                    console.error('guards.json yazma hatası:', err);
+                    return interaction.reply({ content: '❌ guards.json yazılamadı (dosya izni?).', ephemeral: true });
+                }
+                return interaction.reply({ content: `✅ **${user.username}** artık bot ekleyebilir.`, ephemeral: true });
             }
-            return interaction.reply({ content: 'Bu kişi zaten listede.', ephemeral: true });
+            return interaction.reply({ content: 'ℹ️ Bu kişi zaten listede.', ephemeral: true });
         }
 
         if (sub === 'cikar') {
             if (!guardsData.whitelist.includes(user.id)) {
-                return interaction.reply({ content: 'Bu kişi zaten listede yok.', ephemeral: true });
+                return interaction.reply({ content: 'ℹ️ Bu kişi listede yok.', ephemeral: true });
             }
             guardsData.whitelist = guardsData.whitelist.filter(id => id !== user.id);
-            fs.writeFileSync(guardsPath, JSON.stringify(guardsData, null, 2));
-            return interaction.reply(`❌ **${user.username}** listeden çıkarıldı.`);
+            try {
+                fs.writeFileSync(guardsPath, JSON.stringify(guardsData, null, 2));
+            } catch (err) {
+                console.error('guards.json yazma hatası:', err);
+                return interaction.reply({ content: '❌ guards.json yazılamadı (dosya izni?).', ephemeral: true });
+            }
+            return interaction.reply({ content: `✅ **${user.username}** listeden çıkarıldı.`, ephemeral: true });
         }
 
-        if (sub === 'liste') {
-            const list = guardsData.whitelist.length > 0
-                ? guardsData.whitelist.map(id => `<@${id}> (\`${id}\`)`).join('\n')
-                : 'Liste henüz boş.';
+        const list = guardsData.whitelist.length
+            ? guardsData.whitelist.map(id => `<@${id}> (\`${id}\`)`).join('\n')
+            : 'Liste boş.';
 
-            const embed = new EmbedBuilder()
-                .setTitle('🛡️ Guard Beyaz Liste')
-                .setDescription(list)
-                .setColor('#0099ff')
-                .setTimestamp();
+        const embed = new EmbedBuilder()
+            .setTitle('🛡️ Guard Beyaz Liste')
+            .setDescription(list)
+            .setColor('#0099ff')
+            .setTimestamp();
 
-            return interaction.reply({ embeds: [embed] });
-        }
+        return interaction.reply({ embeds: [embed], ephemeral: true });
     },
 };
