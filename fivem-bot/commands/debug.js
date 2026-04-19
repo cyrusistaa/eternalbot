@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { dbPath } = require('../lib/db');
 const { settingsPath, all: allSettings } = require('../lib/settings');
+const pkg = require('../package.json');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -56,6 +57,7 @@ module.exports = {
         return interaction.reply({
             content:
                 `🧪 Debug\n` +
+                `Version: ${pkg.version}\n` +
                 `Events: loaded=${loaded} firedOnce=${fired} DEBUG_EVENTS=${debugEvents}\n` +
                 `Intents(bitfield): ${intentsValue}\n` +
                 `Loaded: ${shortList(loadedNames)}\n` +

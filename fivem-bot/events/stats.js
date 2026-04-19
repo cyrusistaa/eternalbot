@@ -53,6 +53,8 @@ module.exports = {
                         const msg = 'Botta Manage Channels izni yok; stats kanalları yeniden adlandırılamaz.';
                         console.log(`⚠️ [STATS] ${msg}`);
                         await sendErrorLog(client, msg);
+                    } else {
+                        console.log('✅ [STATS] Manage Channels izni var.');
                     }
                 } catch {}
             }

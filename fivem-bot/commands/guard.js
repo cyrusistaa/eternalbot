@@ -19,15 +19,17 @@ module.exports = {
                 .setDescription('Listeden birini çıkarır.')
                 .addUserOption(opt => opt.setName('kisi').setDescription('Çıkarılacak kişi').setRequired(true))
         )
-        .addSubcommand(sub => sub.setName('liste').setDescription('Listeyi gösterir.')),
+        .addSubcommand(sub => sub.setName('liste').setDescription('Listeyi gösterir.'))
+        // Komut menüsünde bile sadece admin görsün (runtime check'e ek güvenlik)
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
         if (!interaction.guild || !interaction.member) {
             return interaction.reply({ content: '❌ Bu komut sadece sunucuda kullanılabilir.', ephemeral: true });
         }
 
-        const yetkiliRolId = getSetting('TICKET_YETKILI_ROL');
-        const hasRole = yetkiliRolId ? interaction.member.roles.cache.has(yetkiliRolId) : false;
+        const guardRolId = getSetting('GUARD_YETKILI_ROL');
+        const hasRole = guardRolId ? interaction.member.roles.cache.has(guardRolId) : false;
         const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
         if (!hasRole && !isAdmin) {
             return interaction.reply({ content: '❌ Yetkin yok.', ephemeral: true });
