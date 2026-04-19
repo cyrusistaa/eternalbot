@@ -14,6 +14,19 @@ module.exports = {
         const events = interaction.client._debugEvents;
         const loaded = events?.loadedEvents?.length ?? 0;
         const fired = events?.firedEvents?.size ?? 0;
+        const debugEvents = process.env.DEBUG_EVENTS === '1';
+
+        const intents = interaction.client.options.intents;
+        const intentsValue = typeof intents?.bitfield === 'number' ? intents.bitfield : (Number(intents) || 0);
+
+        const loadedNames = (events?.loadedEvents || []).map(e => e.name);
+        const firedNames = Array.from(events?.firedEvents || []);
+
+        const shortList = (arr, max = 12) => {
+            const sliced = arr.slice(0, max);
+            const more = arr.length > max ? ` …(+${arr.length - max})` : '';
+            return (sliced.join(', ') || 'Yok') + more;
+        };
 
         const dbDir = path.dirname(dbPath);
         let canWrite = false;
@@ -36,7 +49,10 @@ module.exports = {
         return interaction.reply({
             content:
                 `🧪 Debug\n` +
-                `Events: loaded=${loaded} firedOnce=${fired}\n` +
+                `Events: loaded=${loaded} firedOnce=${fired} DEBUG_EVENTS=${debugEvents}\n` +
+                `Intents(bitfield): ${intentsValue}\n` +
+                `Loaded: ${shortList(loadedNames)}\n` +
+                `Fired: ${shortList(firedNames)}\n` +
                 `DB: path=${dbPath} exists=${dbExists} size=${dbSize} writableDir=${canWrite}\n` +
                 `Settings: ${criticalText}\n` +
                 `settings.json: ${settingsPath}`,

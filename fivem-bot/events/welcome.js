@@ -1,5 +1,6 @@
 const { EmbedBuilder, Events } = require('discord.js');
 const { get: getSetting } = require('../lib/settings');
+const { sendErrorLog } = require('../lib/errorLog');
 
 module.exports = {
     name: Events.GuildMemberAdd, 
@@ -16,9 +17,13 @@ module.exports = {
             const otoRolId = getSetting('OTO_ROL_ID');
             
             if (otoRolId && otoRolId.length > 5) {
-                await member.roles.add(otoRolId).catch(err => 
-                    console.log(`[HATA] Oto-rol verilemedi:`, err.message)
-                );
+                try {
+                    await member.roles.add(otoRolId);
+                } catch (err) {
+                    const msg = `Oto-rol verilemedi (OTO_ROL_ID=${otoRolId}): ${err?.code || ''} ${err?.message || err}`;
+                    console.log(`⚠️ ${msg}`);
+                    await sendErrorLog(member.client, msg);
+                }
             }
 
             // --- 2. LOG VE HOŞ GELDİN MESAJLARI ---
@@ -36,7 +41,9 @@ module.exports = {
                     .setFooter({ text: `Katılım Saati: ${new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}` });
 
                 // Burada content kısmından @everyone'ı sildim.
-                await logKanal.send({ embeds: [basvuruEmbed] });
+                await logKanal.send({ embeds: [basvuruEmbed] }).catch(async (err) => {
+                    await sendErrorLog(member.client, `Giriş/çıkış log gönderilemedi: ${err?.code || ''} ${err?.message || err}`);
+                });
 
                 // B) GENEL HOŞ GELDİN MESAJI
                 const hgEmbed = new EmbedBuilder()
@@ -45,7 +52,9 @@ module.exports = {
                     .setColor('#2ecc71')
                     .setTimestamp();
 
-                await logKanal.send({ embeds: [hgEmbed] });
+                await logKanal.send({ embeds: [hgEmbed] }).catch(async (err) => {
+                    await sendErrorLog(member.client, `Hoşgeldin embed gönderilemedi: ${err?.code || ''} ${err?.message || err}`);
+                });
             }
 
             // --- 3. KULLANICIYA ÖZEL DM MESAJI ---
